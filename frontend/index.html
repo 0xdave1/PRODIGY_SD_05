@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Book Scraper</title>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      background: #f4f4f9;
+      margin: 0;
+      padding: 20px;
+    }
+    h1 { text-align: center; margin-bottom: 20px; }
+    .controls {
+      display: flex;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 20px;
+      flex-wrap: wrap;
+    }
+    input, select, button, a {
+      padding: 10px;
+      border-radius: 5px;
+      border: 1px solid #ddd;
+    }
+    button, a {
+      background: #007bff;
+      color: white;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+    }
+    button:hover, a:hover { background: #0056b3; }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: white;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+    }
+    th, td {
+      padding: 12px;
+      border-bottom: 1px solid #ddd;
+      text-align: left;
+    }
+    th { background: #007bff; color: white; }
+    tr:hover { background: #f1f1f1; }
+    .pagination {
+      display: flex;
+      justify-content: center;
+      margin-top: 20px;
+      gap: 10px;
+    }
+    .pagination button { padding: 8px 12px; }
+  </style>
+</head>
+<body>
+  <h1>📚 Scraped Book Data</h1>
+
+  <div class="controls">
+    <button onclick="fetchData()">Fetch Data</button>
+    <a href="http://127.0.0.1:5000/download">Download CSV</a>
+    <input type="text" id="search" placeholder="Search by title..." oninput="filterData()" />
+    <select id="ratingFilter" onchange="filterData()">
+      <option value="">All Ratings</option>
+      <option value="One">⭐ One</option>
+      <option value="Two">⭐⭐ Two</option>
+      <option value="Three">⭐⭐⭐ Three</option>
+      <option value="Four">⭐⭐⭐⭐ Four</option>
+      <option value="Five">⭐⭐⭐⭐⭐ Five</option>
+    </select>
+  </div>
+  
+  <table id="data-table">
+    <thead>
+      <tr>
+        <th>Title</th>
+        <th>Price</th>
+        <th>Rating</th>
+      </tr>
+    </thead>
+    <tbody></tbody>
+  </table>
+
+  <div class="pagination">
+    <button onclick="prevPage()">⬅ Prev</button>
+    <span id="page-info"></span>
+    <button onclick="nextPage()">Next ➡</button>
+  </div>
+
+  <script>
+    let allBooks = [];
+    let filteredBooks = [];
+    let currentPage = 1;
+    const itemsPerPage = 10;
+
+    async function fetchData() {
+      const response = await fetch("http://127.0.0.1:5000/scrape");
+      const data = await response.json();
+      console.log("Fetched books:", data); // Debugging
+      allBooks = data;
+      filteredBooks = [...allBooks]; // make a copy
+      currentPage = 1;
+      renderTable();
+    }
+
+    function renderTable() {
+      const tableBody = document.querySelector("#data-table tbody");
+      tableBody.innerHTML = "";
+
+      if (filteredBooks.length === 0) {
+        tableBody.innerHTML = `<tr><td colspan="3" style="text-align:center;">No books found</td></tr>`;
+        document.getElementById("page-info").textContent = "";
+        return;
+      }
+
+      const start = (currentPage - 1) * itemsPerPage;
+      const end = start + itemsPerPage;
+      const pageItems = filteredBooks.slice(start, end);
+
+      pageItems.forEach(book => {
+        const row = `
+          <tr>
+            <td>${book.title}</td>
+            <td>${book.price.replace("\u00c2\u00a3","£")}</td>
+            <td>${book.rating}</td>
+          </tr>
+        `;
+        tableBody.innerHTML += row;
+      });
+
+      const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
+      document.getElementById("page-info").textContent = `Page ${currentPage} of ${totalPages}`;
+    }
+
+    function filterData() {
+      const searchQuery = document.getElementById("search").value.toLowerCase();
+      const ratingFilter = document.getElementById("ratingFilter").value;
+
+      filteredBooks = allBooks.filter(book => {
+        const matchesTitle = book.title.toLowerCase().includes(searchQuery);
+        const matchesRating = ratingFilter === "" || book.rating === ratingFilter;
+        return matchesTitle && matchesRating;
+      });
+
+      currentPage = 1;
+      renderTable();
+    }
+
+    function nextPage() {
+      const totalPages = Math.ceil(filteredBooks.length / itemsPerPage);
+      if (currentPage < totalPages) {
+        currentPage++;
+        renderTable();
+      }
+    }
+
+    function prevPage() {
+      if (currentPage > 1) {
+        currentPage--;
+        renderTable();
+      }
+    }
+  </script>
+</body>
+</html>
